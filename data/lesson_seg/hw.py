@@ -1,43 +1,28 @@
 import cv2
 import numpy as np
+from ultralytics import YOLO
 
-# 1. Load the image
-# Make sure the path to the file is correct
-image_path = 'tumor1.jpg'
-img = cv2.imread(image_path)
+img_path = 'tumor1.jpg'
+img = cv2.imread(img_path)
 
-if img is None:
-    print(f"Error: Could not open image {image_path}")
-else:
-    # 2. Segmentation
-    # Convert to grayscale for easier analysis
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+model_path = 'brain-tumor-seg.pt'
+model = YOLO(model_path)
 
-    # VARIANT A: If you have the pre-made mask file mentioned in the task
-    # mask = cv2.imread('data/lesson_seg/brain-tumor-seg.jpg', 0)
+results = model.predict(source=img, save=False, verbose=False)
 
-    # VARIANT B: Create the mask programmatically (since the tumor is the brightest object)
-    # Apply Thresholding. Pixels brighter than 160 become white (255), others black (0).
-    _, mask = cv2.threshold(gray, 160, 255, cv2.THRESH_BINARY)
+if results[0].masks is not None:
+    mask_raw = results[0].masks.data[0].cpu().numpy()
+    mask = (mask_raw * 255).astype("uint8")
 
-    # Clean up noise (erosion followed by dilation) to keep the shape solid
-    kernel = np.ones((3, 3), np.uint8)
-    mask = cv2.erode(mask, kernel, iterations=1)
-    mask = cv2.dilate(mask, kernel, iterations=1)
+    h, w = img.shape[:2]
+    mask = cv2.resize(mask, (w, h))
 
-    # 3. Calculate Area
-    # Count the number of white pixels (non-zero pixels in the mask)
     area_pixels = cv2.countNonZero(mask)
-
-    # Conversion factor: 1 pixel = 0.0025 units
     pixel_factor = 0.0025
     area_real = area_pixels * pixel_factor
 
     print(f"Area in pixels: {area_pixels}")
     print(f"Real area: {area_real:.2f}")
-
-    # 4. Tumor Classification
-    tumor_type = "unknown"
 
     if area_real < 10:
         tumor_type = "small"
@@ -48,14 +33,9 @@ else:
 
     print(f"Tumor type: {tumor_type}")
 
-    # 5. Visualize Result
-    # Use bitwise_and to apply the mask to the original image
-    # (Background becomes black/0, only the tumor remains visible)
     result = cv2.bitwise_and(img, img, mask=mask)
-
-    # Show the result. The window title is the tumor type (e.g., "large").
     cv2.imshow(tumor_type, result)
-
-    # Wait for a key press to close the window
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+else:
+    print("No tumor detected")
