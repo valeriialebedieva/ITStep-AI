@@ -7,7 +7,7 @@ from langchain.schema import HumanMessage, AIMessage
 warnings.filterwarnings("ignore")
 
 # 1. Paste your GROQ key here
-os.environ["GROQ_API_KEY"] = ""
+os.environ["GROQ_API_KEY"] = "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"
 
 
 def chatbot():
